@@ -6,7 +6,6 @@ const generateGraphQLQuery = (keys) => {
     const typeName = parts[1];
     const typeID = parts[2];
     const field = parts.slice(3).join(':');
-    console.log(field);
 
     if (!queryMap[typeName]) {
       queryMap[typeName] = {
@@ -47,7 +46,6 @@ const generateMissingPouchDBCachekeys = async (cacheKeys, graphQLcachedata, loca
     if (!docRequests[key]) docRequests[key] = [];
     docRequests[key].push(keys.split(':').slice(3).join(''));
   });
-  console.log('docrequests here', docRequests);
 
   for (const key in docRequests) {
     const typeName = key.split(':').slice(1, 2).join('');
@@ -58,8 +56,6 @@ const generateMissingPouchDBCachekeys = async (cacheKeys, graphQLcachedata, loca
       if (doc) {
         const fields = docRequests[key];
         fields.forEach((field) => {
-          console.log('field', field);
-          console.log('docfield', doc[field]);
           if (doc[field]) {
             data[typeName] = data[typeName] || {};
             data[typeName][field] = doc[field];
@@ -79,9 +75,6 @@ const generateMissingPouchDBCachekeys = async (cacheKeys, graphQLcachedata, loca
   }
 
   const updatedgraphQLcachedata = data;
-  console.log('data: ', data);
-  console.log('graphQLcachedata: ', graphQLcachedata);
-  console.log('missingPouchCacheKeys', missingPouchCacheKeys);
 
   return { updatedgraphQLcachedata, missingPouchCacheKeys };
 };
@@ -103,7 +96,6 @@ const updatePouchDB = async (updatedCacheKeys, localDB) => {
     try {
       const id = key.split(':').slice(2).join('');
       const doc = await localDB.get(id);
-      console.log('localdb', doc);
 
       if (doc) {
         let copy = { ...doc };
@@ -111,7 +103,6 @@ const updatePouchDB = async (updatedCacheKeys, localDB) => {
           copy[field] = fields[field];
         }
         await localDB.put(copy);
-        console.log('this is post pouch');
       } else {
         await localDB.put(id, fields);
       }
@@ -124,7 +115,6 @@ const updatePouchDB = async (updatedCacheKeys, localDB) => {
 const updateMissingCache = (queryResults, missingCacheKeys) => {
   const updatedCache = {};
   const data = Object.values(queryResults)[0];
-  console.log(data);
 
   missingCacheKeys.forEach((cacheKey) => {
     const key = cacheKey.split(':');
@@ -151,8 +141,12 @@ const mergeGraphQLresponses = (obj1, obj2) => {
 
 const generateMissingLRUCachekeys = (cacheKeys, LRUcache) => {
   const organizedKeys = {};
-  let relationships = {};
-
+  const graphQLcachedata = {
+    data: {},
+  };
+  const cacheKeysInLRU = LRUcache.keys();
+  console.log('cacheKeysInLRU', cacheKeysInLRU);
+  console.log(cacheKeys);
   //process the cache keys
   cacheKeys.forEach((key) => {
     // loop through each key and organize them by entity and ID
@@ -161,6 +155,7 @@ const generateMissingLRUCachekeys = (cacheKeys, LRUcache) => {
     // if the entity doesn't exist in our 'organizedKeys' object, then create it
     if (!organizedKeys[entityType]) {
       organizedKeys[entityType] = {};
+      console.log('organizedKeys', organizedKeys);
     }
     // create an array for the entityId if it doesn't exist as well
     if (!organizedKeys[entityType][entityId]) {
@@ -168,49 +163,52 @@ const generateMissingLRUCachekeys = (cacheKeys, LRUcache) => {
     }
     // append the fields of the current key to the entityId
     organizedKeys[entityType][entityId].push(fields.join(':'));
+    console.log('organizedKeys2', organizedKeys);
   });
   //recursively process each entity and its nested entities if they exist to create a GraphQL response structure
   const buildData = (entityType, entityId) => {
     // get the fields associated with this entity and ID
     const fields = organizedKeys[entityType][entityId];
-    const result = { id: entityId };
+    const resultingValue = { id: entityId };
+    // console.log('result', JSON.parse(JSON.stringify(resultingValue)));
+
+    console.log('fields', fields);
+    console.log('resultingValue', resultingValue);
 
     // iterate over each field within the 'entityType' and 'entityId' ('user', '123')
     fields.forEach((field) => {
       // try fetching the value for this field within the LRU cache
       const value = LRUcache.get(`query:${entityType}:${entityId}:${field}`);
-
-      // check if the field also exists within 'organizedKeys'
-      if (field === relationships[entityType] && organizedKeys[field]) {
-        // if so, the field is actually a reference to another entity
-        const nestedEntityId = Object.keys(organizedKeys[field])[0];
-        // start another recursion by processing the data for the nested entity
-        result[field] = buildData(field, nestedEntityId);
-      } else {
-        result[field] = value;
-      }
+      console.log('lruCache: ', value);
+      resultingValue[field] = value;
+      console.log('result[field]', resultingValue[field]);
     });
-    return result;
+    return resultingValue;
   };
-
-  const graphQLcachedata = {
-    data: {},
-  };
-
   // split the first key and retrieve the top level type (i.e. query:user:123:name = 'user')
   const [_, topLevelEntity] = cacheKeys[0].split(':');
   // grab the ID for the top-level entity
+  console.log('organizedKeys[topLevelEntity]', organizedKeys[topLevelEntity]);
   const topLevelEntityId = Object.keys(organizedKeys[topLevelEntity])[0];
+  console.log('topLevelEntityId', topLevelEntityId);
   // invoke buildData with 'user' and '123' to recursively process assembling graphQL response data
+
   graphQLcachedata.data[topLevelEntity] = buildData(topLevelEntity, topLevelEntityId);
+  console.log('graphQLcachedata.data[topLevelEntity]', graphQLcachedata.data[topLevelEntity]);
   // check if nested entities haven't been proccessed yet
   Object.keys(organizedKeys).forEach((entityType) => {
     // conditional to ensure that we're not reprocessing the top entity again
+    console.log('entityType', entityType);
     if (entityType !== topLevelEntity) {
       const nestedEntityId = Object.keys(organizedKeys[entityType])[0];
+      console.log('nestedEntityId', nestedEntityId);
       // conditional to append nested entities to the top level entity
       if (!graphQLcachedata.data[topLevelEntity][entityType]) {
         graphQLcachedata.data[topLevelEntity][entityType] = buildData(entityType, nestedEntityId);
+        console.log(
+          'graphQLcachedata.data[topLevelEntity][entityType]',
+          graphQLcachedata.data[topLevelEntity][entityType]
+        );
       }
     }
   });
