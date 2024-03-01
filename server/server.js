@@ -6,22 +6,10 @@ import BundlServer from '../bunDL-server/src/bundl';
 import { schema } from './schema';
 import { graphqlHTTP } from 'express-graphql';
 import bodyParser from 'body-parser';
-import BundlClient from '../bunDL-client/src/bunCache';
 
-const {
-  GraphQLSchema,
-  GraphQLObjectType,
-  GraphQLString,
-  GraphQLFloat,
-  GraphQLInt,
-  GraphQLID,
-} = require('graphql');
+const { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLFloat, GraphQLInt, GraphQLID } = require('graphql');
 
-const {
-  getRedisInfo,
-  getRedisKeys,
-  getRedisValues,
-} = require('../bunDL-server/src/helpers/redisHelper');
+const { getRedisInfo, getRedisKeys, getRedisValues } = require('../bunDL-server/src/helpers/redisHelper');
 
 const app = express();
 app.use(express.json());
