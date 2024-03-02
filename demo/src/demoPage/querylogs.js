@@ -57,15 +57,9 @@ function QueryLogs() {
                     ))}
                   </div>
                 </td>
-
-                {queryTypeLog[index] === 'query' && (
-                  <>                  {fetchSpeed[index] && <td>{`${fetchSpeed[index]} ms`}</td>}
-                  {queryTypeLog[index] === 'query' && cache[index] && <td>{cache[index]}</td>}
-                  {queryTypeLog[index] === 'query' && enviornmentLog[index] && <td>{`bun ${enviornmentLog[index]}`}</td>}
-           
-                  </>
-                )}
-                
+                <td>{fetchSpeed[index] ? `${fetchSpeed[index]} ms` : ''}</td>
+                <td>{cache[index] ? cache[index] : ''}</td>
+                <td>{enviornmentLog[index] ? `bun ${enviornmentLog[index]}` : ''}</td>
               </tr>
             ))}
           </tbody>
