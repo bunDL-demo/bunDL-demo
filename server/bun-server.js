@@ -5,18 +5,73 @@ import BundlServer from 'bundl-server';
 import { schema } from './schema.js';
 import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
 import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
+import { BasicAuthenticator } from 'ibm-cloud-sdk-core';
 import graphqlHTTP from 'express-graphql';
 
-import { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLFloat, GraphQLInt, GraphQLID, graphql } from 'graphql';
+import { CloudantV1 } from '@ibm-cloud/cloudant';
+const vcapLocal = JSON.parse(fs.readFileSync(path.join(__dirname, '../vcap-local.json'), 'utf8')); //refactor to use bun syntax ^
 
-import { getRedisInfo, getRedisKeys, getRedisValues } from '../bunDL-server/src/helpers/redisHelper.js';
+const cloudantCredentials = vcapLocal.services.cloudantnosqldb.credentials;
+const authenticator = new BasicAuthenticator({
+  username: cloudantCredentials.username,
+  password: cloudantCredentials.password,
+});
+
+const service = new CloudantV1({
+  authenticator: authenticator,
+});
+
+service.setServiceUrl(Bun.env.URL);
+
+service
+  .getMembershipInformation()
+  .then((info) => {
+    // console.log('Membership info: ', info);
+  })
+  .catch((err) => {
+    console.error('Error connecting to Cloudant:', err);
+    console.error('Stack: ', err.stack);
+  });
+
+// export const db = new pouchdb('bundl-database');
+
+// const pouchURL = cloudantCredentials.url;
+// const remoteDB = new pouchdb(`${pouchURL}/bundl-test`, {
+//   auth: {
+//     username: cloudantCredentials.username,
+//     password: cloudantCredentials.password,
+//   },
+// });
+
+// const sync = db.sync(remoteDB, { live: true });
+// sync.on('error', function (err) {
+//   console.error('Sync Error', err);
+// });
+
+import {
+  GraphQLSchema,
+  GraphQLObjectType,
+  GraphQLString,
+  GraphQLFloat,
+  GraphQLInt,
+  GraphQLID,
+  graphql,
+} from 'graphql';
+
+import {
+  getRedisInfo,
+  getRedisKeys,
+  getRedisValues,
+} from '../bunDL-server/src/helpers/redisHelper.js';
+
+// const bunDLClient = new BunCache(couchDBSchema, 100);
 
 const bunDLServer = new BundlServer({
   schema: schema,
   cacheExpiration: 3600,
   redisPort: process.env.REDIS_PORT,
-  redisHost: process.env.REDIS_HOST,
-});
+  redisHost: process.env.REDIS_HOST}
+);
 
 const BASE_PATH = path.join(__dirname, '../bunDL-client/front-end/public/');
 
