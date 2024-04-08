@@ -1,38 +1,5 @@
-import {
-  GraphQLObjectType,
-  GraphQLSchema,
-  GraphQLString,
-  GraphQLNonNull,
-  GraphQLList,
-  GraphQLID,
-  GraphQLInt,
-  GraphQLInputObjectType,
-} from 'graphql';
+import { GraphQLObjectType, GraphQLSchema, GraphQLString, GraphQLNonNull, GraphQLList, GraphQLID, GraphQLInt, GraphQLInputObjectType } from 'graphql';
 const { faker } = require('@faker-js/faker');
-
-const vcapLocal = {
-  services: {
-    cloudantnosqldb: {
-      credentials: {
-        "apikey": "K9StPMhYQ7gGvkVe-6vbB-1_yKoV4hpmIdT9SjJzSp7X",
-        "host": "bb239217-6899-4f67-bc43-e8a61ab80e4f-bluemix.cloudantnosqldb.appdomain.cloud",
-        "iam_apikey_description": "Auto-generated for key crn:v1:bluemix:public:cloudantnosqldb:us-south:a/346615b68f04446082a512b3c612e711:44f41151-8ec7-4efd-8b54-b1eb9f927391:resource-key:9b79b4b5-4bfd-4822-91cf-4ee1852e4164",
-        "iam_apikey_name": "bundl-brandon",
-        "iam_role_crn": "crn:v1:bluemix:public:iam::::serviceRole:Manager",
-        "iam_serviceid_crn": "crn:v1:bluemix:public:iam-identity::a/346615b68f04446082a512b3c612e711::serviceid:ServiceId-7d760fca-83d5-48b1-92cf-d22664ae55cd",
-        "password": "f4116c05768ba33c8ae4ce89c6c71a26",
-        "port": 443,
-        "url": "https://apikey-v2-eo862nd3l7nn9eonwj3uwnzviny8k5am6nuzl13f5tq:f4116c05768ba33c8ae4ce89c6c71a26@bb239217-6899-4f67-bc43-e8a61ab80e4f-bluemix.cloudantnosqldb.appdomain.cloud",
-        "username": "apikey-v2-eo862nd3l7nn9eonwj3uwnzviny8k5am6nuzl13f5tq"
-      },
-      label: 'cloudantnosqldb',
-    },
-  },
-};
-
-const cloudantCredentials = vcapLocal.services.cloudantnosqldb.credentials;
-const COUCHDB_URL = cloudantCredentials.url;
-const COUCHDB_DB_NAME = 'bundl-test';
 
 const generateFakeData = (num) => {
   const documents = [];
@@ -67,16 +34,6 @@ const generateFakeData = (num) => {
   }
   return documents;
 };
-
-//id
-//rev
-//value
-//doc {
-// id
-// rev
-// company...
-//}
-
 // Function to populate the database with fake users
 export const populateDB = async (numberOfUsers) => {
   const fakeData = [];
@@ -130,9 +87,7 @@ const DepartmentType = new GraphQLObjectType({
             include_docs: true,
           });
           console.log('queryParams: ', queryParams.keys);
-          const departmentDocs = await fetch(
-            `${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`
-          );
+          const departmentDocs = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`);
 
           return departmentDocs.rows.map((row) => row.doc);
         } catch (error) {
@@ -160,9 +115,7 @@ const CompanyType = new GraphQLObjectType({
             include_docs: true,
           });
           console.log('queryParams for company: ', queryParams.keys);
-          const departmentDocs = await fetch(
-            `${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`
-          );
+          const departmentDocs = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`);
           console.log('in sofa');
           return departmentDocs.rows.map((row) => row.doc);
         } catch (error) {
@@ -189,16 +142,12 @@ const RootQuery = new GraphQLObjectType({
     companies: {
       type: new GraphQLList(CompanyType),
       async resolve() {
-        const response = await fetch(
-          `${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?include_docs=true`
-        );
+        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?include_docs=true`);
         const data = await response.json();
-        return data.rows
-    .filter(row => row.doc.company && Object.keys(row.doc).length > 0)
-    .map(row => row.doc);
-},
+        return data.rows.filter((row) => row.doc.company && Object.keys(row.doc).length > 0).map((row) => row.doc);
       },
-    
+    },
+
     department: {
       type: DepartmentType,
       args: { id: { type: GraphQLString } },
