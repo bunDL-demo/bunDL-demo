@@ -1,6 +1,12 @@
 import { GraphQLObjectType, GraphQLSchema, GraphQLString, GraphQLNonNull, GraphQLList, GraphQLID, GraphQLInt, GraphQLInputObjectType } from 'graphql';
 const { faker } = require('@faker-js/faker');
 
+const COUCHDB_URL = Bun.env.COUCHDB_URL;
+const COUCHDB_USER = Bun.env.COUCHDB_USER;
+const COUCHDB_PASSWORD = Bun.env.COUCHDB_PASSWORD;
+const AUTH_HEADER = `Basic ${Buffer.from(`${COUCHDB_USER}:${COUCHDB_PASSWORD}`).toString('base64')}`;
+const COUCHDB_DB_NAME = 'bundl-demo-db';
+
 const generateFakeData = (num) => {
   const documents = [];
 
@@ -35,28 +41,28 @@ const generateFakeData = (num) => {
   return documents;
 };
 // Function to populate the database with fake users
-export const populateDB = async (numberOfUsers) => {
-  const fakeData = [];
-  // Generate fake users
-  for (let i = 0; i < numberOfUsers; i++) {
-    fakeData.push(...generateFakeData(i));
-  }
+export const populateDB = async (numberOfDocuments) => {
+  const fakeData = generateFakeData(numberOfDocuments);
+
   try {
     const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_bulk_docs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: AUTH_HEADER,
       },
       body: JSON.stringify({ docs: fakeData }),
     });
-    const result = await response.json();
-    console.log(result);
-    return result;
-    console.log('Database populated:', response);
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('Database populated: ', result);
+    } else {
+      console.error('Failed to populate database: ', await response.text());
+    }
   } catch (err) {
     console.error('Error populating database:', err);
   }
-  // Bulk insert into PouchDB
 };
 // populateDB(5);
 
