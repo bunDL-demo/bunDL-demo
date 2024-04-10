@@ -5,7 +5,6 @@ import BundlServer from 'bundl-server';
 import { schema } from './schema.js';
 // import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
 // import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
-// import { BasicAuthenticator } from 'ibm-cloud-sdk-core';
 // import graphqlHTTP from 'express-graphql';
 
 const COUCHDB_BASE_URL = Bun.env.COUCHDB_URL;
