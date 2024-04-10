@@ -35,6 +35,6 @@
     "pouchdb": "^8.0.1",
     "pouchdb-adapter-idb": "^8.0.1",
     "pouchdb-browser": "^8.0.1",
-    "redis": "^4.6.10"
+    "redis": "^4.6.13"
   }
 }

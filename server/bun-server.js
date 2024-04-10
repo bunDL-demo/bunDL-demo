@@ -1,21 +1,37 @@
 import fs from 'fs';
 import path from 'path';
-import redisCacheMain from '../bunDL-server/src/helpers/redisConnection.js';
+// import redisCacheMain from '../bunDL-server/src/helpers/redisConnection.js';
 import BundlServer from 'bundl-server';
 import { schema } from './schema.js';
-import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
-import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
-import graphqlHTTP from 'express-graphql';
+// import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
+// import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
+// import { BasicAuthenticator } from 'ibm-cloud-sdk-core';
+// import graphqlHTTP from 'express-graphql';
 
-import { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLFloat, GraphQLInt, GraphQLID, graphql } from 'graphql';
+const COUCHDB_BASE_URL = Bun.env.COUCHDB_URL;
 
-import { getRedisInfo, getRedisKeys, getRedisValues } from '../bunDL-server/src/helpers/redisHelper.js';
+const COUCHDB_USER = Bun.env.COUCHDB_USER;
+const COUCHDB_PASSWORD = Bun.env.COUCHDB_PASSWORD;
+const AUTH_HEADER = `Basic ${Buffer.from(`${COUCHDB_USER}:${COUCHDB_PASSWORD}`).toString('base64')}`;
+
+async function listDatabases() {
+  const response = await fetch(`${COUCHDB_BASE_URL}/bundl-demodb`, {
+    headers: {
+      Authorization: AUTH_HEADER,
+    },
+  });
+  const data = await response.json();
+  console.log('Databases: ', data);
+}
+
+listDatabases();
 
 const bunDLServer = new BundlServer({
   schema: schema,
   cacheExpiration: 3600,
   redisPort: process.env.REDIS_PORT,
   redisHost: process.env.REDIS_HOST,
+  userConfig: {},
 });
 
 const BASE_PATH = path.join(__dirname, '../bunDL-client/front-end/public/');
@@ -32,9 +48,10 @@ const handlers = {
     }
   },
   '/graphql': async (req) => {
+    console.log('graphql endpoint reached');
     if (req.method === 'POST') {
       return bunDLServer.query(req).then((queryResults) => {
-        console.log('hit graphql: ', queryResults);
+        // console.log('queryResults are: ', queryResults);
         return new Response(JSON.stringify(queryResults), {
           status: 200,
         });
@@ -127,6 +144,7 @@ Bun.serve({
   async fetch(req) {
     const handler = handlers[new URL(req.url).pathname];
     if (handler) {
+      console.log('request in Bun.serve is: ', req);
       const response = await handler(req);
       return setCORSHeaders(response);
     }
