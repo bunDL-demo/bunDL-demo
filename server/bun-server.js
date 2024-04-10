@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 // import redisCacheMain from '../bunDL-server/src/helpers/redisConnection.js';
-import BundlServer from 'bundl-server';
+// import BundlServer from 'bundl-server';
+import BunDL from '../bunDL-server/src/bundl.js';
 import { schema } from './schema.js';
 // import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
 // import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
@@ -25,7 +26,7 @@ async function listDatabases() {
 
 listDatabases();
 
-const bunDLServer = new BundlServer({
+const bunDLServer = new BunDL({
   schema: schema,
   cacheExpiration: 3600,
   redisPort: Bun.env.REDIS_PORT,

@@ -7,9 +7,9 @@ import { createClient } from 'redis';
 // const redisPort = 6379;
 // const redisHost = '127.0.0.1';
 
-const redisPort = Bun.env.REDIS_PORT;
-const redisHost = Bun.env.REDIS_HOST;
-const redisPass = Bun.env.REDIS_PASSWORD;
+const redisPort = process.env.REDIS_PORT;
+const redisHost = process.env.REDIS_HOST;
+const redisPass = process.env.REDIS_PASSWORD;
 
 // const redisCacheMain = createClient({
 //   password: ,
