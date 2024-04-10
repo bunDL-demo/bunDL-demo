@@ -28,8 +28,8 @@ listDatabases();
 const bunDLServer = new BundlServer({
   schema: schema,
   cacheExpiration: 3600,
-  redisPort: process.env.REDIS_PORT,
-  redisHost: process.env.REDIS_HOST,
+  redisPort: Bun.env.REDIS_PORT,
+  redisHost: Bun.env.REDIS_HOST,
   userConfig: {},
 });
 
