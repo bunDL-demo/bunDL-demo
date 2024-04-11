@@ -39,11 +39,11 @@ export default class BunDL {
       //   request.body.query
       //   );
       const { sanitizedQuery } = await interceptQueryAndParse(request.body.query);
-      console.log('line 42, sanitizedQuery: ', sanitizedQuery);
+
       const queryHash = this.generateQueryHash(sanitizedQuery);
       const cachedResult = await this.getCachedQueryResult(queryHash);
       if (cachedResult) {
-        console.log('cache hit for query');
+        console.log('Cache hit for query');
         return cachedResult;
       } else {
         console.log('Cache miss for query');
@@ -52,13 +52,10 @@ export default class BunDL {
         const { proto, operationType, operationMutation } = obj;
         let queryResults;
         if (operationMutation) {
-          console.log('in operationMutation if block');
           queryResults = await graphql(this.schema, sanitizedQuery);
-          console.log('queryResults: ', queryResults);
           this.clearRedisCache();
         } else {
           queryResults = await graphql(this.schema, sanitizedQuery);
-          console.log('in else block: queryResults: ', queryResults);
         }
 
         await this.storeDocuments(sanitizedQuery, queryResults);
@@ -179,15 +176,10 @@ export default class BunDL {
   }
 
   async storeDocuments(queryString, queryResults) {
-    console.log('queryResults: ', queryResults);
-    console.log('queryString: ', queryString);
-    console.log('storeDocuments method fired');
     const queryHash = this.generateQueryHash(queryString);
-    console.log('queryHash: ', queryHash);
+
     const resultKey = `result:${new Date().getTime()}:${Math.random()}`;
-    console.log('resultKey: ', resultKey);
     const value = JSON.stringify(queryResults);
-    console.log('value: ', value);
     await this.redisCache.set(resultKey, value, 'EX', this.cacheExpiration);
     await this.redisCache.set(queryHash, resultKey, 'EX', this.cacheExpiration);
     console.log(`Query results stored under key: ${resultKey}`);
