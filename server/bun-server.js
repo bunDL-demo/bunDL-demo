@@ -48,7 +48,6 @@ const handlers = {
     console.log('graphql endpoint reached');
     if (req.method === 'POST') {
       return bunDLServer.query(req).then((queryResults) => {
-        // console.log('queryResults are: ', queryResults);
         return new Response(JSON.stringify(queryResults), {
           status: 200,
         });
@@ -95,11 +94,8 @@ const handlers = {
       //todo ======= REFACTOR FOR UPDATED CACHING LOGIC ===============//
       let data = await Bun.readableStreamToJSON(req.body);
       data = JSON.parse(data);
-      console.log('data is: ', data);
       const response = await db.post(data);
-      console.log('response is: ', response);
       const doc = await db.get(response.id);
-      console.log('doc is: ', doc);
       bunDLClient.set(response.id, doc);
       const lruValue = bunDLClient.get(response.id);
       console.log('lruValue is: ', lruValue);
@@ -141,7 +137,6 @@ Bun.serve({
   async fetch(req) {
     const handler = handlers[new URL(req.url).pathname];
     if (handler) {
-      console.log('request in Bun.serve is: ', req);
       const response = await handler(req);
       return setCORSHeaders(response);
     }
