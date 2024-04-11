@@ -1,12 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-// import redisCacheMain from '../bunDL-server/src/helpers/redisConnection.js';
 // import BundlServer from 'bundl-server';
 import BunDL from '../bunDL-server/src/bundl.js';
 import { schema } from './schema.js';
 // import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
-// import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
-// import graphqlHTTP from 'express-graphql';
 
 const COUCHDB_BASE_URL = Bun.env.COUCHDB_URL;
 

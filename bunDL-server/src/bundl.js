@@ -188,8 +188,8 @@ export default class BunDL {
     console.log('resultKey: ', resultKey);
     const value = JSON.stringify(queryResults);
     console.log('value: ', value);
-    await this.redisCache.set(resultKey, value, { EX: this.cacheExpiration });
-    await this.redisCache.set(queryHash, resultKey, { EX: this.cacheExpiration });
+    await this.redisCache.set(resultKey, value, 'EX', this.cacheExpiration);
+    await this.redisCache.set(queryHash, resultKey, 'EX', this.cacheExpiration);
     console.log(`Query results stored under key: ${resultKey}`);
     console.log(`Query hash ${queryHash} linked to results key: ${resultKey}`);
   }
