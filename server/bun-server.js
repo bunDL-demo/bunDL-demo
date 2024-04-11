@@ -1,77 +1,38 @@
 import fs from 'fs';
 import path from 'path';
-import redisCacheMain from '../bunDL-server/src/helpers/redisConnection.js';
-import BundlServer from 'bundl-server';
+// import redisCacheMain from '../bunDL-server/src/helpers/redisConnection.js';
+// import BundlServer from 'bundl-server';
+import BunDL from '../bunDL-server/src/bundl.js';
 import { schema } from './schema.js';
-import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
-import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
-import { BasicAuthenticator } from 'ibm-cloud-sdk-core';
-import graphqlHTTP from 'express-graphql';
+// import { extractIdFromQuery } from '../bunDL-server/src/helpers/queryObjectFunctions.js';
+// import { couchDBSchema, documentValidation } from '../bunDL-server/couchSchema.js';
+// import graphqlHTTP from 'express-graphql';
 
-import { CloudantV1 } from '@ibm-cloud/cloudant';
-const vcapLocal = JSON.parse(fs.readFileSync(path.join(__dirname, '../vcap-local.json'), 'utf8')); //refactor to use bun syntax ^
+const COUCHDB_BASE_URL = Bun.env.COUCHDB_URL;
 
-const cloudantCredentials = vcapLocal.services.cloudantnosqldb.credentials;
-const authenticator = new BasicAuthenticator({
-  username: cloudantCredentials.username,
-  password: cloudantCredentials.password,
-});
+const COUCHDB_USER = Bun.env.COUCHDB_USER;
+const COUCHDB_PASSWORD = Bun.env.COUCHDB_PASSWORD;
+const AUTH_HEADER = `Basic ${Buffer.from(`${COUCHDB_USER}:${COUCHDB_PASSWORD}`).toString('base64')}`;
 
-const service = new CloudantV1({
-  authenticator: authenticator,
-});
-
-service.setServiceUrl(Bun.env.URL);
-
-service
-  .getMembershipInformation()
-  .then((info) => {
-    // console.log('Membership info: ', info);
-  })
-  .catch((err) => {
-    console.error('Error connecting to Cloudant:', err);
-    console.error('Stack: ', err.stack);
+async function listDatabases() {
+  const response = await fetch(`${COUCHDB_BASE_URL}/bundl-demodb`, {
+    headers: {
+      Authorization: AUTH_HEADER,
+    },
   });
+  const data = await response.json();
+  console.log('Databases: ', data);
+}
 
-// export const db = new pouchdb('bundl-database');
+listDatabases();
 
-// const pouchURL = cloudantCredentials.url;
-// const remoteDB = new pouchdb(`${pouchURL}/bundl-test`, {
-//   auth: {
-//     username: cloudantCredentials.username,
-//     password: cloudantCredentials.password,
-//   },
-// });
-
-// const sync = db.sync(remoteDB, { live: true });
-// sync.on('error', function (err) {
-//   console.error('Sync Error', err);
-// });
-
-import {
-  GraphQLSchema,
-  GraphQLObjectType,
-  GraphQLString,
-  GraphQLFloat,
-  GraphQLInt,
-  GraphQLID,
-  graphql,
-} from 'graphql';
-
-import {
-  getRedisInfo,
-  getRedisKeys,
-  getRedisValues,
-} from '../bunDL-server/src/helpers/redisHelper.js';
-
-// const bunDLClient = new BunCache(couchDBSchema, 100);
-
-const bunDLServer = new BundlServer({
+const bunDLServer = new BunDL({
   schema: schema,
   cacheExpiration: 3600,
-  redisPort: process.env.REDIS_PORT,
-  redisHost: process.env.REDIS_HOST}
-);
+  redisPort: Bun.env.REDIS_PORT,
+  redisHost: Bun.env.REDIS_HOST,
+  userConfig: {},
+});
 
 const BASE_PATH = path.join(__dirname, '../bunDL-client/front-end/public/');
 
@@ -87,9 +48,10 @@ const handlers = {
     }
   },
   '/graphql': async (req) => {
+    console.log('graphql endpoint reached');
     if (req.method === 'POST') {
       return bunDLServer.query(req).then((queryResults) => {
-        console.log('hit graphql: ', queryResults);
+        // console.log('queryResults are: ', queryResults);
         return new Response(JSON.stringify(queryResults), {
           status: 200,
         });
@@ -182,6 +144,7 @@ Bun.serve({
   async fetch(req) {
     const handler = handlers[new URL(req.url).pathname];
     if (handler) {
+      console.log('request in Bun.serve is: ', req);
       const response = await handler(req);
       return setCORSHeaders(response);
     }

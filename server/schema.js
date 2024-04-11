@@ -1,46 +1,23 @@
-import {
-  GraphQLObjectType,
-  GraphQLSchema,
-  GraphQLString,
-  GraphQLNonNull,
-  GraphQLList,
-  GraphQLID,
-  GraphQLInt,
-  GraphQLInputObjectType,
-} from 'graphql';
+import { GraphQLObjectType, GraphQLSchema, GraphQLString, GraphQLNonNull, GraphQLList, GraphQLID, GraphQLInt, GraphQLInputObjectType } from 'graphql';
 const { faker } = require('@faker-js/faker');
 
-const vcapLocal = {
-  services: {
-    cloudantnosqldb: {
-      credentials: {
-        "apikey": "K9StPMhYQ7gGvkVe-6vbB-1_yKoV4hpmIdT9SjJzSp7X",
-        "host": "bb239217-6899-4f67-bc43-e8a61ab80e4f-bluemix.cloudantnosqldb.appdomain.cloud",
-        "iam_apikey_description": "Auto-generated for key crn:v1:bluemix:public:cloudantnosqldb:us-south:a/346615b68f04446082a512b3c612e711:44f41151-8ec7-4efd-8b54-b1eb9f927391:resource-key:9b79b4b5-4bfd-4822-91cf-4ee1852e4164",
-        "iam_apikey_name": "bundl-brandon",
-        "iam_role_crn": "crn:v1:bluemix:public:iam::::serviceRole:Manager",
-        "iam_serviceid_crn": "crn:v1:bluemix:public:iam-identity::a/346615b68f04446082a512b3c612e711::serviceid:ServiceId-7d760fca-83d5-48b1-92cf-d22664ae55cd",
-        "password": "f4116c05768ba33c8ae4ce89c6c71a26",
-        "port": 443,
-        "url": "https://apikey-v2-eo862nd3l7nn9eonwj3uwnzviny8k5am6nuzl13f5tq:f4116c05768ba33c8ae4ce89c6c71a26@bb239217-6899-4f67-bc43-e8a61ab80e4f-bluemix.cloudantnosqldb.appdomain.cloud",
-        "username": "apikey-v2-eo862nd3l7nn9eonwj3uwnzviny8k5am6nuzl13f5tq"
-      },
-      label: 'cloudantnosqldb',
-    },
-  },
-};
-
-const cloudantCredentials = vcapLocal.services.cloudantnosqldb.credentials;
-const COUCHDB_URL = cloudantCredentials.url;
-const COUCHDB_DB_NAME = 'bundl-test';
+const COUCHDB_URL = Bun.env.COUCHDB_URL;
+const COUCHDB_USER = Bun.env.COUCHDB_USER;
+const COUCHDB_PASSWORD = Bun.env.COUCHDB_PASSWORD;
+const AUTH_HEADER = `Basic ${Buffer.from(`${COUCHDB_USER}:${COUCHDB_PASSWORD}`).toString('base64')}`;
+const COUCHDB_DB_NAME = 'bundl-demodb';
 
 const generateFakeData = (num) => {
   const documents = [];
 
   for (let i = 0; i < num; i++) {
-    const companyId = `company${i}`;
-    const departmentId = `department${i}`;
-    const productId = `product${i}`;
+    // const companyId = `company${i}`;
+    const companyId = faker.database.mongodbObjectId();
+    // const departmentId = `department${i}`;
+    const departmentId = faker.database.mongodbObjectId();
+    // const productId = `product${i}`;
+    const productId = faker.database.mongodbObjectId();
+
     const company = {
       _id: companyId,
       type: 'Company',
@@ -78,30 +55,31 @@ const generateFakeData = (num) => {
 //}
 
 // Function to populate the database with fake users
-export const populateDB = async (numberOfUsers) => {
-  const fakeData = [];
-  // Generate fake users
-  for (let i = 0; i < numberOfUsers; i++) {
-    fakeData.push(...generateFakeData(i));
-  }
+export const populateDB = async (numberOfDocuments) => {
+  const fakeData = generateFakeData(numberOfDocuments);
+
   try {
     const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_bulk_docs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: AUTH_HEADER,
       },
       body: JSON.stringify({ docs: fakeData }),
     });
-    const result = await response.json();
-    console.log(result);
-    return result;
-    console.log('Database populated:', response);
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('Database populated: ', result);
+    } else {
+      console.error('Failed to populate database: ', await response.text());
+    }
   } catch (err) {
     console.error('Error populating database:', err);
   }
-  // Bulk insert into PouchDB
 };
-// populateDB(5);
+// populateDB(100);
+// populateDB(10);
 
 // GraphQL Types
 
@@ -115,6 +93,34 @@ const ProductType = new GraphQLObjectType({
   }),
 });
 
+// old version, not returning product names properly
+// const DepartmentType = new GraphQLObjectType({
+//   name: 'Department',
+//   fields: () => ({
+//     id: { type: GraphQLID, resolve: (department) => department._id }, // Renamed variable
+//     departmentName: { type: GraphQLString },
+//     product: {
+//       type: new GraphQLList(ProductType),
+//       args: { id: { type: GraphQLString } },
+//       resolve: async (parent, args) => {
+//         try {
+//           const queryParams = new URLSearchParams({
+//             keys: parent.products,
+//             include_docs: true,
+//           });
+//           console.log('queryParams: ', queryParams.keys);
+//           const departmentDocs = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`);
+//           console.log('departmentDocs is: ', departmentDocs);
+//           return;
+//           // return departmentDocs.rows.map((row) => row.doc);
+//         } catch (error) {
+//           console.error(error);
+//         }
+//       },
+//     },
+//   }),
+// });
+
 const DepartmentType = new GraphQLObjectType({
   name: 'Department',
   fields: () => ({
@@ -124,20 +130,17 @@ const DepartmentType = new GraphQLObjectType({
       type: new GraphQLList(ProductType),
       args: { id: { type: GraphQLString } },
       resolve: async (parent, args) => {
-        try {
-          const queryParams = new URLSearchParams({
-            keys: parent.products,
-            include_docs: true,
-          });
-          console.log('queryParams: ', queryParams.keys);
-          const departmentDocs = await fetch(
-            `${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`
-          );
-
-          return departmentDocs.rows.map((row) => row.doc);
-        } catch (error) {
-          console.error(error);
-        }
+        const ids = parent.products;
+        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?include_docs=true`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: AUTH_HEADER,
+          },
+          body: JSON.stringify({ keys: ids }),
+        });
+        const result = await response.json();
+        return result.rows.map((row) => row.doc);
       },
     },
   }),
@@ -152,22 +155,44 @@ const CompanyType = new GraphQLObjectType({
     state: { type: GraphQLString },
     department: {
       type: new GraphQLList(DepartmentType),
-      args: { id: { type: GraphQLString } },
-      resolve: async (parent, args) => {
-        try {
-          const queryParams = new URLSearchParams({
-            keys: parent.departments,
-            include_docs: true,
-          });
-          console.log('queryParams for company: ', queryParams.keys);
-          const departmentDocs = await fetch(
-            `${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`
-          );
-          console.log('in sofa');
-          return departmentDocs.rows.map((row) => row.doc);
-        } catch (error) {
-          console.error(error);
-        }
+      // args: { id: { type: GraphQLString } },
+      // resolve: async (parent, args) => {
+      //   try {
+      //     const queryParams = new URLSearchParams({
+      //       keys: parent.departments,
+      //       include_docs: true,
+      //     });
+      //     console.log('queryParams for company: ', queryParams.keys);
+      //     const departmentDocs = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?${queryParams}`);
+      //     console.log('in sofa');
+      //     console.log('departmentDocs: ', departmentDocs);
+      //     // return departmentDocs.rows.map((row) => row.doc);
+      //     return;
+      //   } catch (error) {
+      //     console.error(error);
+      //   }
+      // },
+      resolve: async (company) => {
+        const departmentIds = company.departments;
+        console.log(departmentIds);
+        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_find`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: AUTH_HEADER,
+          },
+          body: JSON.stringify({
+            selector: {
+              _id: {
+                $in: departmentIds,
+              },
+            },
+            fields: ['_id', 'type', 'departmentName', 'products'],
+          }),
+        });
+        if (!response.ok) throw new Error('Failed to fetch departments');
+        const result = await response.json();
+        return result.docs;
       },
     },
   }),
@@ -180,7 +205,9 @@ const RootQuery = new GraphQLObjectType({
       type: CompanyType,
       args: { id: { type: GraphQLString } },
       async resolve(parent, args) {
-        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/${args.id}`);
+        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/${args.id}`, {
+          headers: { Authorization: AUTH_HEADER },
+        });
         console.log('in sofa rootQuery: ', response);
         const data = await response.json();
         return data;
@@ -189,21 +216,21 @@ const RootQuery = new GraphQLObjectType({
     companies: {
       type: new GraphQLList(CompanyType),
       async resolve() {
-        const response = await fetch(
-          `${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?include_docs=true`
-        );
+        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/_all_docs?include_docs=true`, {
+          headers: { Authorization: AUTH_HEADER },
+        });
         const data = await response.json();
-        return data.rows
-    .filter(row => row.doc.company && Object.keys(row.doc).length > 0)
-    .map(row => row.doc);
-},
+        return data.rows.filter((row) => row.doc.company && Object.keys(row.doc).length > 0).map((row) => row.doc);
       },
-    
+    },
+
     department: {
       type: DepartmentType,
       args: { id: { type: GraphQLString } },
       async resolve(parent, args) {
-        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/${args.id}`);
+        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/${args.id}`, {
+          headers: { Authorization: AUTH_HEADER },
+        });
         const data = await response.json();
         return data;
       },
@@ -212,7 +239,9 @@ const RootQuery = new GraphQLObjectType({
       type: ProductType,
       args: { id: { type: GraphQLString } },
       async resolve(parent, args) {
-        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/${args.id}`);
+        const response = await fetch(`${COUCHDB_URL}/${COUCHDB_DB_NAME}/${args.id}`, {
+          headers: { Authorization: AUTH_HEADER },
+        });
         const data = await response.json();
         return data;
       },
@@ -262,6 +291,7 @@ const Mutation = new GraphQLObjectType({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: AUTH_HEADER,
           },
           body: JSON.stringify({ docs: [productData] }),
         });
@@ -284,6 +314,7 @@ const Mutation = new GraphQLObjectType({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: AUTH_HEADER,
           },
           body: JSON.stringify({ docs: [departmentData] }),
         });
@@ -306,6 +337,7 @@ const Mutation = new GraphQLObjectType({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: AUTH_HEADER,
           },
           body: JSON.stringify({ docs: [companyData] }),
         });
